@@ -1,0 +1,343 @@
+
+###############################################################################
+# "Interplay between Childhood Trauma, Bodily Self-Disturbances, and Clinical 
+#   Phenomena in Schizophrenia: a Network Analysis"    
+
+# date 08/10/2023                                                            
+###############################################################################
+
+
+#Data available unpon request. 
+
+
+#Load libraries
+
+```{r}
+library(tidyverse)
+library(bootnet)
+library(mgm)
+library(dplyr)
+library(EstimateGroupNetwork) 
+library(qgraph)
+library(reshape2)
+library(NetworkComparisonTest)
+library(scales)
+library(raster)
+library(useful)
+library(psych)
+library(networktools)
+library(igraph)
+library(EGAnet)
+```
+
+
+# *NETWORK 1* 
+
+#Estimate network
+```{r}
+sxs_network <- estimateNetwork(data3, default="EBICglasso", corMethod="spearman") 
+```
+
+
+#Visualize
+```{r}
+sxs_network$labels<- c("PAS", "Emo\nAbuse", "Phys\nAbuse", "Sex\nAbuse", "Emo\nNeglect", "Phys\nNeglect",  "Positive", "Negative", "General") 
+Groups <- c(rep("PAS",1),rep("CTQ",5),rep("PANSS",3))
+colors<-c("lavender",  "lightcyan", "indianred1")
+
+
+plot2<- qgraph(sxs_network$graph,
+                layout = "spring",
+                labels = sxs_network$labels, vsize=12,  pieColor = "lightgrey",  label.scale.equal=TRUE,label.cex=1.2, fade=FALSE, groups= Groups,  colors=colors)
+```
+
+
+#Stability coef
+```{r}
+nboots = 1000
+caseN = 100
+btnt <- list()
+set.seed(1)
+btnt$sxs_network<- bootnet(data3,
+                         default = "EBICglasso",
+                         type = "case",
+                         nBoots = nboots,
+                         caseN = caseN, nCores = 8)
+
+corStability(btnt$sxs_network)
+```
+
+
+
+#Shortest paths between CTQ and sxs 
+```{r}
+SZ_sxs_paths<- pathways(plot2, from = c("Emo\nAbuse", "Phys\nAbuse", "Sex\nAbuse", "Emo\nNeglect", "Phys\nNeglect"), to = c("Positive", "Negative", "General"), fading = 0.25, lty = 3)
+```
+
+
+
+
+# Community detection with EGA
+```{r}
+EGA(data3, plot.EGA = TRUE, corr= "spearman", algorithm = "walktrap") 
+```
+
+
+#Bridge based on EGA communities 
+```{r}
+# With 2 communities (based on EGA)
+b2 <- bridge(plot2, communities=c('1', '1', '1', '1', '1', '1', '2', '2', '2'))
+b2
+```
+
+
+
+
+
+# NETWORK 1 SUPPLEMENTARY ANALYSES
+
+
+#Centrality indices
+```{r}
+centralityplot<-centralityPlot(sxs_network, include= c("Strength", "ExpectedInfluence", "Closeness", "Betweenness"),
+               orderBy ="Strength") 
+```
+
+
+# Node predictability
+```{r}
+type=rep('g', 9) 
+fit10 <- mgm(data=data3, type=type, lev=rep(1,9), d=1) 
+pred10 <- predict(fit10,data3, error.continuous='VarExpl')  
+mean(pred10$error$R2) 
+```
+
+
+#Visualize with predictability
+```{r}
+plot2 <- qgraph(sxs_network$graph,
+                layout = "spring",
+                labels = sxs_network$labels, vsize=12,  pieColor = "lightgrey", pie=pred10$error$R2, label.scale.equal=TRUE,label.cex=1.2, fade=FALSE, groups= Groups,  colors=colors)
+```
+
+# Confidence intervals 
+```{r}
+sxs_network$labels<- c("PAS", "Emo Abuse", "Phys Abuse", "Sex Abuse", "Emo Neglect", "Phys Neglect",  "Positive", "Negative", "General") 
+
+boot1 <- bootnet(sxs_network, nCores = 8,
+                 nBoots = 1000, type = "nonparametric")
+
+plot(boot1, plot = "interval", order="sample") 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+# *NETWORK 2 *
+
+#Estimate Network
+```{r}
+pos_sxs_network <- estimateNetwork(data4, default="EBICglasso", corMethod= "spearman") 
+```
+
+#Visualize
+```{r}
+
+pos_sxs_network$labels<- c("PAS", "Emo\nAbuse", "Phys\nAbuse", "Sex\nAbuse", "Emo\nNeglect", "Phys\nNeglect",  "Delusions", "Disorg.", "Hallu.", "Excitement", "Grandiosity", "Suspicion", "Hostility") 
+Groups <- c(rep("PAS",1),rep("CTQ",5),rep("PANSS positive",7))
+colors<-c("lavender",  "lightcyan", "indianred1")
+
+plot3 <- qgraph(pos_sxs_network$graph, 
+                layout = "spring",
+                labels = pos_sxs_network$labels, vsize=12,  label.scale.equal=TRUE,label.cex=1.2, fade=FALSE, groups= Groups,  colors=colors)
+```
+
+
+#Stability coef
+```{r}
+nboots = 1000
+caseN = 100
+btnt <- list()
+set.seed(1)
+btnt$pos_sxs_network<- bootnet(data4,
+                         default = "EBICglasso",
+                         type = "case",
+                         nBoots = nboots,
+                         caseN = caseN, nCores = 8)
+
+corStability(btnt$pos_sxs_network) 
+```
+
+
+
+#Shortest paths between CTQ and positive sxs 
+```{r}
+SZ_positivesxs_path<- pathways(plot3, from= c("Emo\nAbuse", "Phys\nAbuse", "Sex\nAbuse", "Emo\nNeglect", "Phys\nNeglect"), to = c("Delusions", "Disorg.", "Hallu.", "Excitement", "Grandiosity", "Suspicion", "Hostility") , fading = 0.25, lty = 3)
+```
+
+
+#EGA
+```{r}
+EGA(data4, plot.EGA = TRUE)
+```
+
+#bridge
+
+```{r}
+
+b2 <- bridge(plot3, communities=c('2', '2', '2', '2', '2', '2', '1', '1', '1' , '1' , '1' , '1' ,'1'))
+b2
+```
+
+
+
+
+#NETWORK 2 SUPPLEMENTARY ANALYSES
+
+#Centrality indices
+```{r}
+centralityplot<-centralityPlot(pos_sxs_network, include= c("Strength", "ExpectedInfluence", "Closeness", "Betweenness"),
+               orderBy ="Strength") 
+```
+
+
+
+# Node predictability
+```{r}
+type=rep('g', 13) 
+fit11 <- mgm(data=data4, type=type, lev=rep(1,13), d=1) 
+pred11 <- predict(fit11,data4, error.continuous='VarExpl')  
+mean(pred11$error$R2)  #0.40
+```
+
+#Visualize with predictability
+```{r}
+plot4 <- qgraph(pos_sxs_network$graph,
+                layout = "spring", pieColor = "lightgrey", pie=pred11$error$R2,
+                labels = pos_sxs_network$labels, vsize=12,  label.scale.equal=TRUE,label.cex=1.2, fade=FALSE, groups= Groups,  colors=colors)
+```
+
+
+# Confidence intervals for the pathway to test wether it is significantly non-zero
+```{r}
+pos_sxs_network$labels<- c("PAS", "Emo Abuse", "Phys Abuse", "Sex Abuse", "Emo Neglect", "Phys Neglect",  "Delusions", "Disorg.", "Hallu.", "Excitement", "Grandiosity", "Suspicion", "Hostility") 
+
+boot2 <- bootnet(pos_sxs_network, nCores = 8,
+                 nBoots = 1000, type = "nonparametric")
+plot(boot2, plot = "interval", order="sample") 
+
+```
+
+
+
+
+
+
+
+
+
+*NETWORK 3*
+
+#Estimate Network
+```{r}
+distress_sxs_network <- estimateNetwork(data5, default="EBICglasso", corMethod= "spearman") 
+```
+
+
+#Visualize
+```{r}
+distress_sxs_network$labels<- c("PAS", "Emo\nAbuse", "Phys\nAbuse", "Sex\nAbuse", "Emo\nNeglect", "Phys\nNeglect", "Anxiety", "Depression", "Guilt", "Tension")
+
+Groups <- c(rep("PAS",1),rep("CTQ",5),rep("PANSS distress",4))
+colors<-c("lavender",  "lightcyan", "indianred1")
+
+plot5 <- qgraph(distress_sxs_network$graph, layout= "spring",  
+                labels = distress_sxs_network$labels, vsize=12,  label.scale.equal=TRUE,label.cex=1.2, fade=FALSE, groups= Groups,  colors=colors) 
+```
+
+#Stability coef
+```{r}
+nboots = 1000
+caseN = 100
+btnt <- list()
+
+set.seed(1)
+btnt$distress_sxs_network<- bootnet(data5,
+                         default = "EBICglasso",
+                         type = "case",
+                         nBoots = nboots,
+                         caseN = caseN, nCores = 8)
+
+corStability(btnt$distress_sxs_network)
+```
+
+
+
+
+
+
+#Shortest paths between CTQ and distress sxs 
+```{r}
+SZ_distresssxs_path<- pathways(plot5, from= c("Emo\nAbuse", "Phys\nAbuse", "Sex\nAbuse", "Emo\nNeglect", "Phys\nNeglect"), to = c("Anxiety", "Depression", "Guilt", "Tension") , fading = 0.25, lty = 3)
+```
+
+# Confidence intervals 
+```{r}
+distress_sxs_network$labels<- c("PAS", "Emo Abuse", "Phys Abuse", "Sex Abuse", "Emo Neglect", "Phys Neglect",  "Anxiety", "Depression", "Guilt", "Tension") 
+
+boot5 <- bootnet(distress_sxs_network, nCores = 8,
+                 nBoots = 1000, type = "nonparametric")
+plot(boot5, plot = "interval", order="sample") 
+```
+
+
+
+#EGA
+```{r}
+EGA(data5, plot.EGA = TRUE) 
+```
+
+#bridge
+```{r}
+b5 <- bridge(plot5, communities=c('2', '3', '2', '2', '3', '3', '4', '1', '1', '4'))
+b5
+plot(b5)
+```
+
+
+# NETWORK 3 SUPPLEMENTARY ANALYSES
+
+
+#Centrality indices
+```{r}
+centralityplot<-centralityPlot(distress_sxs_network, include= c("Strength", "ExpectedInfluence", "Closeness", "Betweenness"),
+               orderBy ="Strength") 
+```
+
+
+# Node predictability
+```{r}
+type=rep('g', 10) 
+fit11 <- mgm(data=data5, type=type, lev=rep(1,10), d=1) 
+pred11 <- predict(fit11,data5, error.continuous='VarExpl')  
+mean(pred11$error$R2) 
+```
+
+#Visualize with predictability
+```{r}
+plot4 <- qgraph(distress_sxs_network$graph,
+                layout = "spring", pieColor = "lightgrey", pie=pred11$error$R2,
+                labels = distress_sxs_network$labels, vsize=12,  label.scale.equal=TRUE,label.cex=1.2, fade=FALSE, groups= Groups,  colors=colors)
+```
+
+
+
+
